@@ -45,7 +45,7 @@ protected:
 
   ///@{ Strain hardening parameters
   const Real _yield_stress; //Constant for now, but in IsotropicPlasticityStressUpdate it can be a function of temperature.
-  const Function * const _hardening_function; // Modified to function.
+  const Function & _hardening_function; // Modified to function.
   Real _hardening_slope; // Added, stores current gradient of function
   ///@}
 

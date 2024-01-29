@@ -39,9 +39,7 @@ HyperbolicViscoplasticityStressUpdateFunction::HyperbolicViscoplasticityStressUp
     _plastic_prepend(getParam<std::string>("plastic_prepend")),
     _yield_stress(parameters.get<Real>("yield_stress")),
     _hardening_slope(0.0),
-    _hardening_function(this->isParamValid("hardening_function")
-                             ? &this->getFunction("hardening_function")
-                             : nullptr), // Added but no clue if this will work as other class is based on templates.
+    _hardening_function(getFunction("hardening_function")), // Added but no clue if this will work as other class is based on templates.
     _c_alpha(parameters.get<Real>("c_alpha")),
     _c_beta(parameters.get<Real>("c_beta")),
     _yield_condition(-1.0), // set to a non-physical value to catch uninitalized yield condition
@@ -123,21 +121,26 @@ HyperbolicViscoplasticityStressUpdateFunction::iterationFinalize(const Real & sc
 {
   if (_yield_condition > 0.0)
     _hardening_variable[_qp] = computeHardeningValue(scalar);
+    //std::cout << scalar;
+    //std::cout << ';';
+    //std::cout << computeHardeningDerivative(scalar);
+    //std::cout << ';';
+    //std::cout << computeHardeningValue(scalar);
+    //std::cout << '\n';
+
 }
 
 Real
 HyperbolicViscoplasticityStressUpdateFunction::computeHardeningValue(Real scalar)
 {
-  //return _hardening_variable_old[_qp] + (_hardening_constant * scalar);
-  const Real strain_old = this->_effective_inelastic_strain_old[_qp];
-  return _hardening_function->value(strain_old + scalar) - _yield_stress; // Should be the main change gets the hardening value using the function 
+  //return _hardening_variable_old[_qp] + (_hardening_slope * scalar);
+  return _hardening_function.value(_effective_inelastic_strain_old[_qp] + scalar);// - _yield_stress; // Should be the main change gets the hardening value using the function 
 }
 
 Real
 HyperbolicViscoplasticityStressUpdateFunction::computeHardeningDerivative(Real scalar)
 {
-    const Real strain_old = this->_effective_inelastic_strain_old[_qp];
-    return _hardening_function->timeDerivative(strain_old);
+    return _hardening_function.timeDerivative(_effective_inelastic_strain_old[_qp]);
 }
 
 void
