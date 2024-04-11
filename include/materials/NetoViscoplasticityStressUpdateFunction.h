@@ -20,12 +20,12 @@
  * Basing chages on IsotropicPlasticityStressUpdate approach, which also derives
  * from Dunne & Petrinic.
  */
-class PerzynaViscoplasticityStressUpdateFunction : public RadialReturnStressUpdate
+class NetoViscoplasticityStressUpdateFunction : public RadialReturnStressUpdate
 {
 public:
   static InputParameters validParams();
 
-  PerzynaViscoplasticityStressUpdateFunction(const InputParameters & parameters);
+  NetoViscoplasticityStressUpdateFunction(const InputParameters & parameters);
 
 protected:
   virtual void initQpStatefulProperties() override;
