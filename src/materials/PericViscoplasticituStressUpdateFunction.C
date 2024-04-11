@@ -1,15 +1,15 @@
-#include "NetoViscoplasticityStressUpdateFunction.h"
+#include "PericViscoplasticityStressUpdateFunction.h"
 
 #include "Function.h"
 #include "ElasticityTensorTools.h"
 
-registerMooseObject("TensorMechanicsApp", NetoViscoplasticityStressUpdateFunction);
+registerMooseObject("TensorMechanicsApp", PericViscoplasticityStressUpdateFunction);
 
 InputParameters
-NetoViscoplasticityStressUpdateFunction::validParams()
+PericViscoplasticityStressUpdateFunction::validParams()
 {
   InputParameters params = RadialReturnStressUpdate::validParams();
-  params.addClassDescription("This class uses the discrete material for a Neto type "
+  params.addClassDescription("This class uses the discrete material for a Peric type "
                              "viscoplasticity model in which the effective plastic strain is "
                              "solved for using a creep approach.");
 
@@ -33,7 +33,7 @@ NetoViscoplasticityStressUpdateFunction::validParams()
   return params;
 }
 
-NetoViscoplasticityStressUpdateFunction::NetoViscoplasticityStressUpdateFunction(
+PericViscoplasticityStressUpdateFunction::PericViscoplasticityStressUpdateFunction(
     const InputParameters & parameters)
   : RadialReturnStressUpdate(parameters),
     _plastic_prepend(getParam<std::string>("plastic_prepend")),
@@ -54,14 +54,14 @@ NetoViscoplasticityStressUpdateFunction::NetoViscoplasticityStressUpdateFunction
 }
 
 void
-NetoViscoplasticityStressUpdateFunction::initQpStatefulProperties()
+PericViscoplasticityStressUpdateFunction::initQpStatefulProperties()
 {
   _hardening_variable[_qp] = 0.0;
   _plastic_strain[_qp].zero();
 }
 
 void
-NetoViscoplasticityStressUpdateFunction::propagateQpStatefulProperties()
+PericViscoplasticityStressUpdateFunction::propagateQpStatefulProperties()
 {
   _hardening_variable[_qp] = _hardening_variable_old[_qp];
   _plastic_strain[_qp] = _plastic_strain_old[_qp];
@@ -70,7 +70,7 @@ NetoViscoplasticityStressUpdateFunction::propagateQpStatefulProperties()
 }
 
 void
-NetoViscoplasticityStressUpdateFunction::computeStressInitialize(
+PericViscoplasticityStressUpdateFunction::computeStressInitialize(
     const Real & effective_trial_stress, const RankFourTensor & elasticity_tensor)
 {
   RadialReturnStressUpdate::computeStressInitialize(effective_trial_stress, elasticity_tensor);
@@ -82,7 +82,7 @@ NetoViscoplasticityStressUpdateFunction::computeStressInitialize(
 }
 
 Real
-NetoViscoplasticityStressUpdateFunction::computeResidual(const Real & effective_trial_stress,
+PericViscoplasticityStressUpdateFunction::computeResidual(const Real & effective_trial_stress,
                                                        const Real & scalar)
 {
   Real residual = 0.0;
@@ -106,7 +106,7 @@ NetoViscoplasticityStressUpdateFunction::computeResidual(const Real & effective_
 }
 
 Real
-NetoViscoplasticityStressUpdateFunction::computeDerivative(const Real & /*effective_trial_stress*/,
+PericViscoplasticityStressUpdateFunction::computeDerivative(const Real & /*effective_trial_stress*/,
                                                          const Real & /*scalar*/)
 {
   Real derivative = 1.0;
@@ -117,7 +117,7 @@ NetoViscoplasticityStressUpdateFunction::computeDerivative(const Real & /*effect
 }
 
 void
-NetoViscoplasticityStressUpdateFunction::iterationFinalize(const Real & scalar)
+PericViscoplasticityStressUpdateFunction::iterationFinalize(const Real & scalar)
 {
   if (_yield_condition > 0.0)
     _hardening_variable[_qp] = computeHardeningValue(scalar);
@@ -136,20 +136,20 @@ NetoViscoplasticityStressUpdateFunction::iterationFinalize(const Real & scalar)
 }
 
 Real
-NetoViscoplasticityStressUpdateFunction::computeHardeningValue(Real scalar)
+PericViscoplasticityStressUpdateFunction::computeHardeningValue(Real scalar)
 {
   //return _hardening_variable_old[_qp] + (_hardening_slope * scalar);
   return _hardening_function.value(_effective_inelastic_strain_old[_qp] + scalar);// - _yield_stress; // Should be the main change gets the hardening value using the function 
 }
 
 Real
-NetoViscoplasticityStressUpdateFunction::computeHardeningDerivative(Real scalar)
+PericViscoplasticityStressUpdateFunction::computeHardeningDerivative(Real scalar)
 {
     return _hardening_function.timeDerivative(_effective_inelastic_strain_old[_qp]);
 }
 
 void
-NetoViscoplasticityStressUpdateFunction::computeStressFinalize(
+PericViscoplasticityStressUpdateFunction::computeStressFinalize(
     const RankTwoTensor & plasticStrainIncrement)
 {
   _plastic_strain[_qp] += plasticStrainIncrement;
