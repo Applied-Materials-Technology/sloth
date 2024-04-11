@@ -95,8 +95,8 @@ PerzynaViscoplasticityStressUpdateFunction::computeResidual(const Real & effecti
     _hardening_slope = computeHardeningDerivative(scalar);
 
     const Real xflow =  ((effective_trial_stress - (_three_shear_modulus * scalar))/
-                                  (computeHardeningValue(scalar) + _yield_stress)) - 1;
-    const Real xphi = _eta*std::pow(xflow,_n);
+                                  (computeHardeningValue(scalar) + _yield_stress));
+    const Real xphi = _eta*(std::pow(xflow,_n)-1);
 
     _xphidp = ((-_three_shear_modulus * _eta * _n)/(computeHardeningValue(scalar) + _yield_stress))*std::pow(xflow,_n-1);
     _xphir = -_eta * _n*((effective_trial_stress - (_three_shear_modulus * scalar))/std::pow((computeHardeningValue(scalar) + _yield_stress),2)) * std::pow(xflow,_n-1);
