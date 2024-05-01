@@ -3,7 +3,7 @@
 #include "Function.h"
 #include "ElasticityTensorTools.h"
 
-registerMooseObject("TensorMechanicsApp", HyperbolicViscoplasticityStressUpdateFunction);
+registerMooseObject("SolidMechanicsApp", HyperbolicViscoplasticityStressUpdateFunction);
 
 InputParameters
 HyperbolicViscoplasticityStressUpdateFunction::validParams()
@@ -38,8 +38,8 @@ HyperbolicViscoplasticityStressUpdateFunction::HyperbolicViscoplasticityStressUp
   : RadialReturnStressUpdate(parameters),
     _plastic_prepend(getParam<std::string>("plastic_prepend")),
     _yield_stress(parameters.get<Real>("yield_stress")),
-    _hardening_slope(0.0),
     _hardening_function(getFunction("hardening_function")), // Added but no clue if this will work as other class is based on templates.
+    _hardening_slope(0.0),
     _c_alpha(parameters.get<Real>("c_alpha")),
     _c_beta(parameters.get<Real>("c_beta")),
     _yield_condition(-1.0), // set to a non-physical value to catch uninitalized yield condition

@@ -3,7 +3,7 @@
 #include "Function.h"
 #include "ElasticityTensorTools.h"
 
-registerMooseObject("TensorMechanicsApp", PerzynaViscoplasticityStressUpdateFunction);
+registerMooseObject("SolidMechanicsApp", PerzynaViscoplasticityStressUpdateFunction);
 
 InputParameters
 PerzynaViscoplasticityStressUpdateFunction::validParams()
@@ -38,8 +38,8 @@ PerzynaViscoplasticityStressUpdateFunction::PerzynaViscoplasticityStressUpdateFu
   : RadialReturnStressUpdate(parameters),
     _plastic_prepend(getParam<std::string>("plastic_prepend")),
     _yield_stress(parameters.get<Real>("yield_stress")),
-    _hardening_slope(0.0),
     _hardening_function(getFunction("hardening_function")), // Added but no clue if this will work as other class is based on templates.
+    _hardening_slope(0.0),
     _n(parameters.get<Real>("n")),
     _eta(parameters.get<Real>("eta")),
     _yield_condition(-1.0), // set to a non-physical value to catch uninitalized yield condition
