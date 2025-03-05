@@ -139,13 +139,13 @@ Real
 PericViscoplasticityStressUpdateFunction::computeHardeningValue(Real scalar)
 {
   //return _hardening_variable_old[_qp] + (_hardening_slope * scalar);
-  return _hardening_function.value(_effective_inelastic_strain_old[_qp] + scalar);// - _yield_stress; // Should be the main change gets the hardening value using the function 
+  return _hardening_function.value(_effective_inelastic_strain_old[_qp] + scalar,_q_point[_qp]);// - _yield_stress; // Should be the main change gets the hardening value using the function 
 }
 
 Real
 PericViscoplasticityStressUpdateFunction::computeHardeningDerivative(Real scalar)
 {
-    return _hardening_function.timeDerivative(_effective_inelastic_strain_old[_qp]);
+    return _hardening_function.timeDerivative(_effective_inelastic_strain_old[_qp],_q_point[_qp]);
 }
 
 void

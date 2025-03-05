@@ -1,27 +1,32 @@
-#include "HyperbolicViscoplasticityStressUpdateFunction.h"
+#include "HSVStressUpdate.h"
 
 #include "Function.h"
 #include "ElasticityTensorTools.h"
 
-registerMooseObject("SolidMechanicsApp", HyperbolicViscoplasticityStressUpdateFunction);
+registerMooseObject("SolidMechanicsApp", HSVStressUpdate);
 
 InputParameters
-HyperbolicViscoplasticityStressUpdateFunction::validParams()
+HSVStressUpdate::validParams()
 {
   InputParameters params = RadialReturnStressUpdate::validParams();
   params.addClassDescription("This class uses the discrete material for a hyperbolic sine "
                              "viscoplasticity model in which the effective plastic strain is "
-                             "solved for using a creep approach.");
+                             "solved for using a creep approach. Voce model is hard coded in. Parameters should be material properties that vary spatially with"
+                             "temperature.");
 
-  // Non-linear function strain hardening parameters
-  params.addRequiredParam<Real>("yield_stress",
+  // Non-linear Voce function strain hardening parameters
+  params.addRequiredParam<MaterialPropertyName>("yield_stress",
                                 "The point at which plastic strain begins accumulating");
-  params.addRequiredParam<FunctionName>("hardening_function","True Stress as a function of plastic stain");
-
+  params.addRequiredParam<MaterialPropertyName>("sat_stress",
+                                  "Saturation Stress of the Voce Model");
+  params.addRequiredParam<MaterialPropertyName>("exp_rate",
+                                  "Exponential rate of the saturation of the Voce Model");
+  params.addRequiredParam<MaterialPropertyName>("lin_rate",
+                                  "Linear stress increase of the Voce Model");
   // Viscoplasticity constitutive equation parameters
-  params.addRequiredParam<Real>("c_alpha",
+  params.addRequiredParam<MaterialPropertyName>("c_alpha",
                                 "Viscoplasticity coefficient, scales the hyperbolic function");
-  params.addRequiredParam<Real>("c_beta",
+  params.addRequiredParam<MaterialPropertyName>("c_beta",
                                 "Viscoplasticity coefficient inside the hyperbolic sin function");
   params.addDeprecatedParam<std::string>(
       "plastic_prepend",
@@ -33,15 +38,17 @@ HyperbolicViscoplasticityStressUpdateFunction::validParams()
   return params;
 }
 
-HyperbolicViscoplasticityStressUpdateFunction::HyperbolicViscoplasticityStressUpdateFunction(
+HSVStressUpdate::HSVStressUpdate(
     const InputParameters & parameters)
   : RadialReturnStressUpdate(parameters),
     _plastic_prepend(getParam<std::string>("plastic_prepend")),
-    _yield_stress(parameters.get<Real>("yield_stress")),
-    _hardening_function(getFunction("hardening_function")), // Added but no clue if this will work as other class is based on templates.
+    _yield_stress(getMaterialProperty<Real>("yield_stress")),
+    _sat_stress(getMaterialProperty<Real>("sat_stress")),
+    _exp_rate(getMaterialProperty<Real>("exp_rate")),
+    _lin_rate(getMaterialProperty<Real>("lin_rate")),
     _hardening_slope(0.0),
-    _c_alpha(parameters.get<Real>("c_alpha")),
-    _c_beta(parameters.get<Real>("c_beta")),
+    _c_alpha(getMaterialProperty<Real>("c_alpha")),
+    _c_beta(getMaterialProperty<Real>("c_beta")),
     _yield_condition(-1.0), // set to a non-physical value to catch uninitalized yield condition
     _hardening_variable(declareProperty<Real>("hardening_variable")),
     _hardening_variable_old(getMaterialPropertyOld<Real>("hardening_variable")),
@@ -54,14 +61,14 @@ HyperbolicViscoplasticityStressUpdateFunction::HyperbolicViscoplasticityStressUp
 }
 
 void
-HyperbolicViscoplasticityStressUpdateFunction::initQpStatefulProperties()
+HSVStressUpdate::initQpStatefulProperties()
 {
   _hardening_variable[_qp] = 0.0;
   _plastic_strain[_qp].zero();
 }
 
 void
-HyperbolicViscoplasticityStressUpdateFunction::propagateQpStatefulProperties()
+HSVStressUpdate::propagateQpStatefulProperties()
 {
   _hardening_variable[_qp] = _hardening_variable_old[_qp];
   _plastic_strain[_qp] = _plastic_strain_old[_qp];
@@ -70,19 +77,19 @@ HyperbolicViscoplasticityStressUpdateFunction::propagateQpStatefulProperties()
 }
 
 void
-HyperbolicViscoplasticityStressUpdateFunction::computeStressInitialize(
+HSVStressUpdate::computeStressInitialize(
     const Real & effective_trial_stress, const RankFourTensor & elasticity_tensor)
 {
   RadialReturnStressUpdate::computeStressInitialize(effective_trial_stress, elasticity_tensor);
 
-  _yield_condition = effective_trial_stress - _hardening_variable_old[_qp] - _yield_stress;
+  _yield_condition = effective_trial_stress - _hardening_variable_old[_qp] - _yield_stress[_qp];
 
   _hardening_variable[_qp] = _hardening_variable_old[_qp];
   _plastic_strain[_qp] = _plastic_strain_old[_qp];
 }
 
 Real
-HyperbolicViscoplasticityStressUpdateFunction::computeResidual(const Real & effective_trial_stress,
+HSVStressUpdate::computeResidual(const Real & effective_trial_stress,
                                                        const Real & scalar)
 {
   Real residual = 0.0;
@@ -94,19 +101,19 @@ HyperbolicViscoplasticityStressUpdateFunction::computeResidual(const Real & effe
   {
     _hardening_slope = computeHardeningDerivative(scalar);
 
-    const Real xflow = _c_beta * (effective_trial_stress - (_three_shear_modulus * scalar) -
-                                  computeHardeningValue(scalar) - _yield_stress);
-    const Real xphi = _c_alpha * std::sinh(xflow);
+    const Real xflow = _c_beta[_qp] * (effective_trial_stress - (_three_shear_modulus * scalar) -
+                                  computeHardeningValue(scalar) - _yield_stress[_qp]);
+    const Real xphi = _c_alpha[_qp] * std::sinh(xflow);
 
-    _xphidp = -_three_shear_modulus * _c_alpha * _c_beta * std::cosh(xflow);
-    _xphir = -_c_alpha * _c_beta * std::cosh(xflow);
+    _xphidp = -_three_shear_modulus * _c_alpha[_qp] * _c_beta[_qp] * std::cosh(xflow);
+    _xphir = -_c_alpha[_qp] * _c_beta[_qp] * std::cosh(xflow);
     residual = xphi * _dt - scalar;
   }
   return residual;
 }
 
 Real
-HyperbolicViscoplasticityStressUpdateFunction::computeDerivative(const Real & /*effective_trial_stress*/,
+HSVStressUpdate::computeDerivative(const Real & /*effective_trial_stress*/,
                                                          const Real & /*scalar*/)
 {
   Real derivative = 1.0;
@@ -117,7 +124,7 @@ HyperbolicViscoplasticityStressUpdateFunction::computeDerivative(const Real & /*
 }
 
 void
-HyperbolicViscoplasticityStressUpdateFunction::iterationFinalize(const Real & scalar)
+HSVStressUpdate::iterationFinalize(const Real & scalar)
 {
   if (_yield_condition > 0.0)
     _hardening_variable[_qp] = computeHardeningValue(scalar);
@@ -131,20 +138,22 @@ HyperbolicViscoplasticityStressUpdateFunction::iterationFinalize(const Real & sc
 }
 
 Real
-HyperbolicViscoplasticityStressUpdateFunction::computeHardeningValue(Real scalar)
+HSVStressUpdate::computeHardeningValue(Real scalar)
 {
-  //return _hardening_variable_old[_qp] + (_hardening_slope * scalar);
-  return _hardening_function.value(_effective_inelastic_strain_old[_qp] + scalar,_q_point[_qp]);// - _yield_stress; // Should be the main change gets the hardening value using the function 
+  // Voce model
+  const Real current_strain = _effective_inelastic_strain_old[_qp] + scalar;
+  return _sat_stress[_qp]*(1-std::exp(-1*_exp_rate[_qp]*current_strain))+_lin_rate[_qp]*current_strain;
 }
 
 Real
-HyperbolicViscoplasticityStressUpdateFunction::computeHardeningDerivative(Real scalar)
+HSVStressUpdate::computeHardeningDerivative(Real scalar)
 {
-    return _hardening_function.timeDerivative(_effective_inelastic_strain_old[_qp],_q_point[_qp]);
+
+    return _lin_rate[_qp] + _sat_stress[_qp]*_exp_rate[_qp]*std::exp(-1*_exp_rate[_qp]*_effective_inelastic_strain_old[_qp]);
 }
 
 void
-HyperbolicViscoplasticityStressUpdateFunction::computeStressFinalize(
+HSVStressUpdate::computeStressFinalize(
     const RankTwoTensor & plasticStrainIncrement)
 {
   _plastic_strain[_qp] += plasticStrainIncrement;
